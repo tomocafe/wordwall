@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import math
+import random
 import argparse
 from datetime import datetime
 
 import numpy
-from wordcloud import WordCloud, ImageColorGenerator
 from PIL import Image
+from wordcloud import WordCloud, ImageColorGenerator
 
 _INSTALL_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -16,27 +18,55 @@ _LOGOS = list(map(
     os.listdir(os.path.join(_INSTALL_DIR, 'logo'))
 ))
 
+_MSG = set()
+def _msg(**kwargs):
+    if 'id' in kwargs:
+        if kwargs['id'] in _MSG:
+            return
+        _MSG.add(kwargs['id'])
+    if kwargs['type'] == 'err':
+        print('Error: {text}'.format(text=kwargs['text']), file=sys.stderr)
+        sys.exit(1)
+    elif kwargs['type'] == 'warn':
+        print('Warning: {text}'.format(text=kwargs['text']), file=sys.stderr)
+    else:
+        print('Info: {text}'.format(text=kwargs['text']))
+
 def _getDefaultLogo():
-    # TODO: detect OS
+    try:
+        import distro
+        dist = distro.linux_distribution()[0].lower()
+        if dist in _LOGOS:
+            return dist
+        else:
+            _msg(id='distro',text='No default logo for distribution \'{}\''.format(dist))
+    except:
+        _msg(id='distro',text='Could not auto-detect Linux distribution. Install the distro module.')
+        pass
     return 'tux'
 
 def _getDefaultOutputFile():
     return 'wordwall_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '.png'
 
 def _getDefaultRes():
-    # TODO: detect resolution
-    return [1920, 1080]
+    try:
+        import Xlib.display
+        res = Xlib.display.Display().screen().root.get_geometry()
+        return [res.width, res.height]
+    except:
+        _msg(id='xlib',text='Could not auto-detect screen resolution. Install the Xlib module.')
+        pass
+    return [1920, 1080] # fallback
 
-def _getDefaultMaxWords():
-    res = _getDefaultRes()
+def _getMaxWords(res):
     area = res[0] * res[1]
     return int(round(area / 1000, -2))
 
-def _getDefaultFontSize():
-    # TODO: choose based on resolution
-    return 40
+def _getFontSize(res):
+    return res[1] // 27
 
 def _getText(args):
+    text = ""
     # Find files
     files = []
     if args.text_file:
@@ -66,16 +96,27 @@ def _getText(args):
         ]:
             if os.path.exists(f):
                 files.append(f)
-    # TODO: get logs of git repos
-    #if args.git_log:
-    #    for repo in glob(os.path.join(home, '*', '*.git')):
-    #        files.append() # ???
+    if args.git_repo:
+        try:
+            import git
+            for repo_path in args.git_repo:
+                try:
+                    repo = git.Repo(repo_path)
+                    for commit in repo.iter_commits():
+                        text += str(commit.message)
+                except:
+                    _msg(type='warn', text='Not a git repository: {}'.format(repo_path))
+                    pass
+        except:
+            _msg(id='git', type='warn', text='Cannot fetch git logs. Install the GitPython module.')
+            pass
+
     # Concatenate text in all files
-    text = ""
     for f in files:
         try:
             text += open(f, 'r').read()
         except:
+            _msg(type='warn', text='Failed to read source file: {}'.format(f))
             pass
     return text
 
@@ -102,6 +143,8 @@ def _getMask(args):
 
 def _generate(args):
     text = _getText(args)
+    if not text:
+        _msg(type='err', text='No valid source text. Please check your arguments.')
     mask = _getMask(args)
     cloud = WordCloud(
         width=args.width,
@@ -114,7 +157,12 @@ def _generate(args):
         random_state=45,
         relative_scaling=0
     ).generate(text)
-    cloud.recolor(color_func=ImageColorGenerator(mask))
+    # Apply color function
+    if args.color:
+        color_func = lambda *a, **kw: random.choice(args.color)
+    else:
+        color_func = ImageColorGenerator(mask)
+    cloud.recolor(color_func=color_func)
     cloud.to_file(args.output)
 
 def main():
@@ -122,23 +170,27 @@ def main():
     parser = argparse.ArgumentParser(description='Generates a word cloud wallpaper from user text files')
     # SOURCES
     group = parser.add_argument_group('SOURCES')
-    group.add_argument('--shell-history', action='store_true', default=True, help='read shell history files')
+    group.add_argument('--shell-history', action='store_true', help='read shell history files')
     group.add_argument('--shell-init', action='store_true', help='read shell init files')
-    group.add_argument('--git-log', action='store_true', help='read git logs')
-    group.add_argument('--text-file', metavar='FILE', type=str, action='append', help='read this text file (may be given multiple times)')
+    group.add_argument('--git-repo', metavar='DIR', type=str, action='append', help='path to git repo(s) to read logs from (may be given multiple times)')
+    group.add_argument('--text-file', metavar='FILE', type=str, action='append', help='read from text file(s) (may be given multiple times)')
     # APPEARANCE
     group = parser.add_argument_group('APPEARANCE')
     group.add_argument('--logo', type=str, default=_getDefaultLogo(), choices=_LOGOS, help='logo to use. Default: \'%(default)s\'')
     group.add_argument('--mask-file', type=str, help='mask file to use')
     group.add_argument('--width', type=int, default=_getDefaultRes()[0], help='output image width. Default: \'%(default)s\'')
     group.add_argument('--height', type=int, default=_getDefaultRes()[1], help='output image height. Default: \'%(default)s\'')
-    group.add_argument('--max-words', type=int, default=_getDefaultMaxWords(), help='max number of words to use. Default: \'%(default)s\'')
+    group.add_argument('--max-words', type=int, default=_getMaxWords(_getDefaultRes()), help='max number of words to use. Default: \'%(default)s\'')
     group.add_argument('--font-path', type=str, help='font path to use')
-    group.add_argument('--font-size', type=int, default=_getDefaultFontSize(), help='mask file to use. Default: \'%(default)s\'')
-    group.add_argument('--bg-color', type=str, default='#000000', help='background color. Default: \'%(default)s\'')
+    group.add_argument('--font-size', type=int, default=_getFontSize(_getDefaultRes()), help='mask file to use. Default: \'%(default)s\'')
+    group.add_argument('--bg-color', metavar='COLOR', type=str, default='#000000', help='background color. Default: \'%(default)s\'')
+    group.add_argument('--color', metavar='COLOR', type=str, action='append', help='foreground color(s) (may be given multiple times)')
     # Output
     parser.add_argument('output', metavar='FILE', type=str, nargs='?', default=_getDefaultOutputFile(), help='path to output file. Default: \'%(default)s\'')
     args = parser.parse_args()
+    # Select default source if none is given
+    if not args.shell_history and not args.shell_init and not args.git_repo and not args.text_file:
+        args.shell_history = True
     # Generate wallpaper
     _generate(args)
 
