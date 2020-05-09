@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+
+import os
+import math
+import argparse
+from datetime import datetime
+
+import numpy
+from wordcloud import WordCloud, ImageColorGenerator
+from PIL import Image
+
+_INSTALL_DIR = os.path.dirname(os.path.realpath(__file__))
+
+_LOGOS = list(map(
+    lambda l: os.path.splitext(l)[0],
+    os.listdir(os.path.join(_INSTALL_DIR, 'logo'))
+))
+
+def _getDefaultLogo():
+    # TODO: detect OS
+    return 'tux'
+
+def _getDefaultOutputFile():
+    return 'wordwall_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '.png'
+
+def _getDefaultRes():
+    # TODO: detect resolution
+    return [1920, 1080]
+
+def _getDefaultMaxWords():
+    res = _getDefaultRes()
+    area = res[0] * res[1]
+    return int(round(area / 1000, -2))
+
+def _getDefaultFontSize():
+    # TODO: choose based on resolution
+    return 40
+
+def _getText(args):
+    # Find files
+    files = []
+    if args.text_file:
+        files.extend(args.text_file)
+    home = os.path.expanduser('~')
+    if args.shell_history:
+        for f in [
+            os.path.join(home, '.bash_history'),
+            os.path.join(home, '.history'),
+            os.path.join(home, '.histfile'),
+            os.path.join(home, '.zhistory'),
+            os.path.join(home, '.zsh_history'),
+            os.path.join(home, '.local', 'share', 'fish', 'fish_history')
+        ]:
+            if os.path.exists(f):
+                files.append(f)
+    if args.shell_init:
+        for f in [
+            os.path.join(home, '.bashrc'),
+            os.path.join(home, '.bash_profile'),
+            os.path.join(home, '.profile'),
+            os.path.join(home, '.cshrc'),
+            os.path.join(home, '.zshrc'),
+            os.path.join(home, '.zshenv'),
+            os.path.join(home, '.zprofile'),
+            os.path.join(home, '.config', 'fish', 'config.fish')
+        ]:
+            if os.path.exists(f):
+                files.append(f)
+    # TODO: get logs of git repos
+    #if args.git_log:
+    #    for repo in glob(os.path.join(home, '*', '*.git')):
+    #        files.append() # ???
+    # Concatenate text in all files
+    text = ""
+    for f in files:
+        try:
+            text += open(f, 'r').read()
+        except:
+            pass
+    return text
+
+def _getMask(args):
+    # Get mask file path
+    if args.mask_file:
+        mask_file = args.mask_file
+    elif args.logo:
+        mask_file = os.path.join(_INSTALL_DIR, 'logo', args.logo + '.png')
+    # Create canvas
+    canvas = Image.new('RGBA', (args.width, args.height), color='#ffffff')
+    # Resize logo
+    logo_height = args.height // 2
+    logo = Image.open(mask_file)
+    logo = logo.resize((logo_height, logo_height))
+    # Paste logo to center of canvas
+    pos = (
+        (args.width - logo_height) // 2,
+        logo_height // 2
+    )
+    canvas.paste(logo, pos, logo)
+    # Return image mask data
+    return numpy.array(canvas)
+
+def _generate(args):
+    text = _getText(args)
+    mask = _getMask(args)
+    cloud = WordCloud(
+        width=args.width,
+        height=args.height,
+        background_color=args.bg_color,
+        max_words=args.max_words,
+        mask=mask,
+        font_path=args.font_path,
+        max_font_size=args.font_size,
+        random_state=45,
+        relative_scaling=0
+    ).generate(text)
+    cloud.recolor(color_func=ImageColorGenerator(mask))
+    cloud.to_file(args.output)
+
+def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser(description='Generates a word cloud wallpaper from user text files')
+    # SOURCES
+    group = parser.add_argument_group('SOURCES')
+    group.add_argument('--shell-history', action='store_true', default=True, help='read shell history files')
+    group.add_argument('--shell-init', action='store_true', help='read shell init files')
+    group.add_argument('--git-log', action='store_true', help='read git logs')
+    group.add_argument('--text-file', metavar='FILE', type=str, action='append', help='read this text file (may be given multiple times)')
+    # APPEARANCE
+    group = parser.add_argument_group('APPEARANCE')
+    group.add_argument('--logo', type=str, default=_getDefaultLogo(), choices=_LOGOS, help='logo to use. Default: \'%(default)s\'')
+    group.add_argument('--mask-file', type=str, help='mask file to use')
+    group.add_argument('--width', type=int, default=_getDefaultRes()[0], help='output image width. Default: \'%(default)s\'')
+    group.add_argument('--height', type=int, default=_getDefaultRes()[1], help='output image height. Default: \'%(default)s\'')
+    group.add_argument('--max-words', type=int, default=_getDefaultMaxWords(), help='max number of words to use. Default: \'%(default)s\'')
+    group.add_argument('--font-path', type=str, help='font path to use')
+    group.add_argument('--font-size', type=int, default=_getDefaultFontSize(), help='mask file to use. Default: \'%(default)s\'')
+    group.add_argument('--bg-color', type=str, default='#000000', help='background color. Default: \'%(default)s\'')
+    # Output
+    parser.add_argument('output', metavar='FILE', type=str, nargs='?', default=_getDefaultOutputFile(), help='path to output file. Default: \'%(default)s\'')
+    args = parser.parse_args()
+    # Generate wallpaper
+    _generate(args)
+
+if __name__ == '__main__':
+    main()
