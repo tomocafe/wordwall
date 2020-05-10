@@ -58,11 +58,15 @@ def _getDefaultRes():
         pass
     return [1920, 1080] # fallback
 
-def _getMaxWords(res):
+def _getMaxWords(res, args=None):
+    if args and args.max_words:
+        return args.max_words
     area = res[0] * res[1]
     return int(round(area / 1000, -2))
 
-def _getFontSize(res):
+def _getFontSize(res, args=None):
+    if args and args.font_size:
+        return args.font_size
     return res[1] // 27
 
 def _getText(args):
@@ -120,6 +124,14 @@ def _getText(args):
             pass
     return text
 
+def _rgbReplace(img, src, dst):
+    data = numpy.array(img)
+    img.convert('RGBA')
+    r, g, b, a = data.T
+    white_pixels = (r == 255) & (g == 255) & (b == 255)
+    data[..., :-1][white_pixels.T] = (254, 254, 254)
+    return Image.fromarray(data)
+
 def _getMask(args):
     # Get mask file path
     if args.mask_file:
@@ -132,6 +144,10 @@ def _getMask(args):
     logo_height = args.height // 2
     logo = Image.open(mask_file)
     logo = logo.resize((logo_height, logo_height))
+    # Replace pure white FFFFFF with FEFEFE in the logo
+    # to distinguish with the canvas (negative space)
+    if args.mask_show_white:
+        logo = _rgbReplace(logo, (255, 255, 255), (254, 254, 254))
     # Paste logo to center of canvas
     pos = (
         (args.width - logo_height) // 2,
@@ -146,14 +162,15 @@ def _generate(args):
     if not text:
         _msg(type='err', text='No valid source text. Please check your arguments.')
     mask = _getMask(args)
+    res = (args.width, args.height)
     cloud = WordCloud(
         width=args.width,
         height=args.height,
         background_color=args.bg_color,
-        max_words=args.max_words,
+        max_words=_getMaxWords(res, args),
         mask=mask,
         font_path=args.font_path,
-        max_font_size=args.font_size,
+        max_font_size=_getFontSize(res, args),
         random_state=45,
         relative_scaling=0
     ).generate(text)
@@ -178,11 +195,12 @@ def main():
     group = parser.add_argument_group('APPEARANCE')
     group.add_argument('--logo', type=str, default=_getDefaultLogo(), choices=_LOGOS, help='logo to use. Default: \'%(default)s\'')
     group.add_argument('--mask-file', type=str, help='mask file to use')
+    group.add_argument('--mask-show-white', action='store_true', help='disable masking out pure white')
     group.add_argument('--width', type=int, default=_getDefaultRes()[0], help='output image width. Default: \'%(default)s\'')
     group.add_argument('--height', type=int, default=_getDefaultRes()[1], help='output image height. Default: \'%(default)s\'')
-    group.add_argument('--max-words', type=int, default=_getMaxWords(_getDefaultRes()), help='max number of words to use. Default: \'%(default)s\'')
+    group.add_argument('--max-words', type=int, help='max number of words to use. Default: \'{}\''.format(_getMaxWords(_getDefaultRes())))
     group.add_argument('--font-path', type=str, help='font path to use')
-    group.add_argument('--font-size', type=int, default=_getFontSize(_getDefaultRes()), help='mask file to use. Default: \'%(default)s\'')
+    group.add_argument('--font-size', type=int, help='mask file to use. Default: \'{}\''.format(_getFontSize(_getDefaultRes())))
     group.add_argument('--bg-color', metavar='COLOR', type=str, default='#000000', help='background color. Default: \'%(default)s\'')
     group.add_argument('--color', metavar='COLOR', type=str, action='append', help='foreground color(s) (may be given multiple times)')
     # Output
