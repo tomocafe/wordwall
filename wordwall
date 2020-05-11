@@ -142,7 +142,7 @@ def _getMask(args):
     canvas = Image.new('RGBA', (args.width, args.height), color='#ffffff')
     # Resize logo
     logo_height = args.height // 2
-    logo = Image.open(mask_file)
+    logo = Image.open(mask_file).convert("RGBA")
     logo = logo.resize((logo_height, logo_height))
     # Replace pure white FFFFFF with FEFEFE in the logo
     # to distinguish with the canvas (negative space)
