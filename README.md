@@ -80,9 +80,9 @@ The logo mask file should be:
 * in PNG format
 * with transparent background
 * named with lowercase alphanumeric characters only
-* match the Distro ID of the [`distro`](https://github.com/nir0s/distro/blob/master/distro.py) module (if the logo is for a distro)
+* match the Distro ID of the [`distro`](https://distro.readthedocs.io/en/latest/#distro.id) module (if the logo is for a distro)
 
-Please also note any applicable trademarks (or similar) in the `logo/ATTRIBUTION` file.
+Please also note any applicable trademarks (or similar) in the `logo/ATTRIBUTION` file, in alphabetical order.
 
 Note: by default, pure white pixels (`#ffffff`) are masked out. This behavior can be overridden with the `--mask-show-white` flag. Transparent pixels (alpha 255) are always masked out.
 

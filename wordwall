@@ -35,7 +35,7 @@ def _msg(**kwargs):
 def _getDefaultLogo():
     try:
         import distro
-        dist = distro.linux_distribution()[0].lower()
+        dist = distro.id() # See https://distro.readthedocs.io/en/latest/#distro.id
         if dist in _LOGOS:
             return dist
         else:
@@ -196,8 +196,8 @@ def main():
     group.add_argument('--logo', type=str, default=_getDefaultLogo(), choices=_LOGOS, help='logo to use. Default: \'%(default)s\'')
     group.add_argument('--mask-file', type=str, help='mask file to use')
     group.add_argument('--mask-show-white', action='store_true', help='disable masking out pure white')
-    group.add_argument('--width', type=int, default=_getDefaultRes()[0], help='output image width. Default: \'%(default)s\'')
-    group.add_argument('--height', type=int, default=_getDefaultRes()[1], help='output image height. Default: \'%(default)s\'')
+    group.add_argument('-W', '--width', type=int, default=_getDefaultRes()[0], help='output image width. Default: \'%(default)s\'')
+    group.add_argument('-H', '--height', type=int, default=_getDefaultRes()[1], help='output image height. Default: \'%(default)s\'')
     group.add_argument('--max-words', type=int, help='max number of words to use. Default: \'{}\''.format(_getMaxWords(_getDefaultRes())))
     group.add_argument('--font-path', type=str, help='font path to use')
     group.add_argument('--font-size', type=int, help='mask file to use. Default: \'{}\''.format(_getFontSize(_getDefaultRes())))
