@@ -107,7 +107,7 @@ def _getText(args):
                 try:
                     repo = git.Repo(repo_path)
                     for commit in repo.iter_commits():
-                        text += str(commit.message)
+                        text += commit.message
                 except:
                     _msg(type='warn', text='Not a git repository: {}'.format(repo_path))
                     pass

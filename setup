@@ -1,0 +1,27 @@
+#!/bin/bash
+
+deps=("wordcloud" "distro" "xlib" "gitpython")
+
+_error() {
+    echo "Error: $1" 1>&2
+    exit ${2:-1}
+}
+
+command -v python3 pip3 &>/dev/null || _error "python3 is not installed, or it is not in your PATH"
+
+prefix=""
+opts=("--user")
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --sys*)
+            [[ $EUID -eq 0 ]] || prefix="sudo"
+            opts=()
+            ;;
+        *)
+            _error "unexpected argument: $1"
+            ;;
+    esac
+    shift
+done
+
+$prefix pip3 install "${opts[@]}" "${deps[@]}"
