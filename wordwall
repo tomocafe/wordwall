@@ -128,8 +128,8 @@ def _rgbReplace(img, src, dst):
     data = numpy.array(img)
     img.convert('RGBA')
     r, g, b, a = data.T
-    white_pixels = (r == 255) & (g == 255) & (b == 255)
-    data[..., :-1][white_pixels.T] = (254, 254, 254)
+    white_pixels = (r == src[0]) & (g == src[1]) & (b == src[2])
+    data[..., :-1][white_pixels.T] = dst
     return Image.fromarray(data)
 
 def _getMask(args):
