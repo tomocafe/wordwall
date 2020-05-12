@@ -24,10 +24,10 @@ def _msg(**kwargs):
         if kwargs['id'] in _MSG:
             return
         _MSG.add(kwargs['id'])
-    if kwargs['type'] == 'err':
+    if 'type' in kwargs and kwargs['type'] == 'err':
         print('Error: {text}'.format(text=kwargs['text']), file=sys.stderr)
         sys.exit(1)
-    elif kwargs['type'] == 'warn':
+    elif 'type' in kwargs and kwargs['type'] == 'warn':
         print('Warning: {text}'.format(text=kwargs['text']), file=sys.stderr)
     else:
         print('Info: {text}'.format(text=kwargs['text']))
@@ -39,9 +39,9 @@ def _getDefaultLogo():
         if dist in _LOGOS:
             return dist
         else:
-            _msg(id='distro',text='No default logo for distribution \'{}\''.format(dist))
+            _msg(id='distro', text='No default logo for distribution \'{}\''.format(dist))
     except:
-        _msg(id='distro',text='Could not auto-detect Linux distribution. Install the distro module.')
+        _msg(id='distro', text='Could not auto-detect Linux distribution. Install the distro module.')
         pass
     return 'tux'
 
@@ -54,7 +54,7 @@ def _getDefaultRes():
         res = Xlib.display.Display().screen().root.get_geometry()
         return [res.width, res.height]
     except:
-        _msg(id='xlib',text='Could not auto-detect screen resolution. Install the Xlib module.')
+        _msg(id='xlib', text='Could not auto-detect screen resolution. Install the Xlib module.')
         pass
     return [1920, 1080] # fallback
 
@@ -173,7 +173,7 @@ def _generate(args):
     if not text:
         _msg(type='err', text='No valid source text. Please check your arguments.')
     mask, width, height = _getMask(args)
-    if args.bg_image:
+    if args.bg_image and not args.bg_color:
         # Pasting a transparent overlay onto the background image can cause harsh edges
         # Match the RGB part of the sole foreground color if applicable to improve it
         if args.color and len(args.color) == 1:
