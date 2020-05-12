@@ -125,11 +125,16 @@ def _getText(args):
     return text
 
 def _rgbReplace(img, src, dst):
-    data = numpy.array(img)
-    img.convert('RGBA')
+    data = numpy.array(img.convert('RGBA'))
     r, g, b, a = data.T
-    white_pixels = (r == src[0]) & (g == src[1]) & (b == src[2])
-    data[..., :-1][white_pixels.T] = dst
+    if len(src) == 4:
+        pixels = (r == src[0]) & (g == src[1]) & (b == src[2]) & (a == src[3])
+    else:
+        pixels = (r == src[0]) & (g == src[1]) & (b == src[2])
+    if len(dst) == 4:
+        data[...][pixels.T] = dst
+    else:
+        data[..., :-1][pixels.T] = dst
     return Image.fromarray(data)
 
 def _getMask(args):
@@ -138,10 +143,16 @@ def _getMask(args):
         mask_file = args.mask_file
     elif args.logo:
         mask_file = os.path.join(_INSTALL_DIR, 'logo', args.logo + '.png')
+    # Determine canvas width/height
+    if args.bg_image:
+        width, height = Image.open(args.bg_image).size
+    else:
+        width = args.width
+        height = args.height
     # Create canvas
-    canvas = Image.new('RGBA', (args.width, args.height), color='#ffffff')
+    canvas = Image.new('RGBA', (width, height), color='#ffffff')
     # Resize logo
-    logo_height = args.height // 2
+    logo_height = height // 2
     logo = Image.open(mask_file).convert("RGBA")
     logo = logo.resize((logo_height, logo_height))
     # Replace pure white FFFFFF with FEFEFE in the logo
@@ -150,29 +161,38 @@ def _getMask(args):
         logo = _rgbReplace(logo, (255, 255, 255), (254, 254, 254))
     # Paste logo to center of canvas
     pos = (
-        (args.width - logo_height) // 2,
+        (width - logo_height) // 2,
         logo_height // 2
     )
     canvas.paste(logo, pos, logo)
     # Return image mask data
-    return numpy.array(canvas)
+    return numpy.array(canvas), width, height
 
 def _generate(args):
     text = _getText(args)
     if not text:
         _msg(type='err', text='No valid source text. Please check your arguments.')
-    mask = _getMask(args)
-    res = (args.width, args.height)
+    mask, width, height = _getMask(args)
+    if args.bg_image:
+        # Pasting a transparent overlay onto the background image
+        # can cause ugly edges -- match the RGB part of the sole foreground color if applicable
+        if args.color and len(args.color) == 1:
+            bg_color = args.color[0] + '00'
+        else:
+            bg_color = '#77777700'
+    else:
+        bg_color=args.bg_color
     cloud = WordCloud(
-        width=args.width,
-        height=args.height,
-        background_color=args.bg_color,
-        max_words=_getMaxWords(res, args),
+        width=width,
+        height=height,
+        background_color=bg_color,
+        max_words=_getMaxWords((width, height), args),
         mask=mask,
         font_path=args.font_path,
-        max_font_size=_getFontSize(res, args),
+        max_font_size=_getFontSize((width, height), args),
         random_state=45,
-        relative_scaling=0
+        relative_scaling=0,
+        mode="RGBA"
     ).generate(text)
     # Apply color function
     if args.color:
@@ -180,7 +200,13 @@ def _generate(args):
     else:
         color_func = ImageColorGenerator(mask)
     cloud.recolor(color_func=color_func)
-    cloud.to_file(args.output)
+    if args.bg_image:
+        overlay = Image.fromarray(cloud.to_array())
+        bg_image = Image.open(args.bg_image).convert("RGBA")
+        bg_image.paste(overlay, None, overlay)
+        bg_image.save(args.output)
+    else:
+        cloud.to_file(args.output)
 
 def main():
     # Parse arguments
@@ -203,6 +229,7 @@ def main():
     group.add_argument('--font-size', type=int, help='mask file to use. Default: \'{}\''.format(_getFontSize(_getDefaultRes())))
     group.add_argument('--bg-color', metavar='COLOR', type=str, default='#000000', help='background color. Default: \'%(default)s\'')
     group.add_argument('--color', metavar='COLOR', type=str, action='append', help='foreground color(s) (may be given multiple times)')
+    group.add_argument('--bg-image', metavar='FILE', type=str, help='background image to superimpose word cloud onto. Overrides width and height.')
     # Output
     parser.add_argument('output', metavar='FILE', type=str, nargs='?', default=_getDefaultOutputFile(), help='path to output file. Default: \'%(default)s\'')
     args = parser.parse_args()
