@@ -174,14 +174,20 @@ def _generate(args):
         _msg(type='err', text='No valid source text. Please check your arguments.')
     mask, width, height = _getMask(args)
     if args.bg_image:
-        # Pasting a transparent overlay onto the background image
-        # can cause ugly edges -- match the RGB part of the sole foreground color if applicable
+        # Pasting a transparent overlay onto the background image can cause harsh edges
+        # Match the RGB part of the sole foreground color if applicable to improve it
         if args.color and len(args.color) == 1:
-            bg_color = args.color[0] + '00'
+            if len(args.color) == 7: # RGB
+                bg_color = args.color[0] + '00'
+            elif len(args.color) == 9: # RGBA
+                bg_color = args.color[:-2] + '00'
+            else:
+                bg_color = '#77777700'
         else:
+            _msg(id='bg_image', text='Background image works best with a single foreground color setting. There may be harsh edges on the text otherwise.')
             bg_color = '#77777700'
     else:
-        bg_color=args.bg_color
+        bg_color = args.bg_color
     cloud = WordCloud(
         width=width,
         height=height,

@@ -7,6 +7,7 @@ Generates a word cloud wallpaper from user text files
 - Detects your Linux distribution and can use a default provided logo if available
 - Use your own color(s) for foreground and background
 - Use your own mask file (advanced)
+- Use a background image to superimpose the word cloud onto
 - Reads from history and init files for different shells out of the box
 - Reads commit messages from git repos out of the box
 - Use your own text files
@@ -46,28 +47,30 @@ Generates a word cloud wallpaper from user text files
 ## Examples
 
 ```shell
-$ wordwall wallpaper.png
+$ ./wordwall wallpaper.png
 ```
 
 ![Default](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex1.png?raw=true "Default")
 
 ```shell
-$ wordwall --logo=solus wallpaper.png
+$ ./wordwall --logo=solus --color='#8fbcbb' --color='#88c0d0' --color='#81a1c1' --bg-color='#3b4252' wallpaper.png
 ```
 
-![Set Logo](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex2.png?raw=true "Set Logo")
+![Set Logo and Colors](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex2.png?raw=true "Set Logo and Colors")
 
 ```shell
-$ wordwall --logo=solus --color='#8fbcbb' --color='#88c0d0' --color='#81a1c1' --bg-color='#3b4252' wallpaper.png
+$ ./wordwall --logo=arch --color='#268bd2' --bg-color='#eee8d5' --git-repo=~/dotfiles wallpaper.png
 ```
 
-![Set Colors](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex3.png?raw=true "Set Colors")
+![git integration](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex3.png?raw=true "git integration")
 
 ```shell
-$ wordwall --logo=arch --color='#268bd2' --bg-color='#eee8d5' --git-repo=~/dotfiles wallpaper.png
+$ ./wordwall --logo=manjaro --color='#ffffff' --bg-image='gradienta-coj7UZ7iN60-unsplash.png' wallpaper.png
 ```
 
-![git integration](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex4.png?raw=true "git integration")
+![Background Image](https://raw.githubusercontent.com/tomocafe/assets/master/wordwall/ex4.png?raw=true "Background Image")
+
+<small>Image credit: [Gradienta on Unsplash](https://unsplash.com/photos/coj7UZ7iN60)</small>
 
 ## Contributing
 
