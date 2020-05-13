@@ -36,6 +36,9 @@ def _getDefaultLogo():
     try:
         import distro
         dist = distro.id() # See https://distro.readthedocs.io/en/latest/#distro.id
+        # Adjust some distro IDs here:
+        if dist.find('opensuse') == 0:
+            dist = 'opensuse'
         if dist in _LOGOS:
             return dist
         else:
@@ -173,7 +176,7 @@ def _generate(args):
     if not text:
         _msg(type='err', text='No valid source text. Please check your arguments.')
     mask, width, height = _getMask(args)
-    if args.bg_image and not args.bg_color:
+    if args.bg_image:
         # Pasting a transparent overlay onto the background image can cause harsh edges
         # Match the RGB part of the sole foreground color if applicable to improve it
         if args.color and len(args.color) == 1:
